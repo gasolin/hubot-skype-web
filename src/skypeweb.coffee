@@ -115,8 +115,8 @@ class SkypeWebAdapter extends Adapter
     if process.platform.indexOf('win') isnt -1
       # Disable dnode with weak on Windows hosts
       phantomOptions.dnodeOpts = weak: false
-    phantom.create ((ph) ->
-      ph.createPage (page) ->
+    phantom.create(phantomOptions).then((ph) ->
+      ph.createPage.then((page) ->
         # Execute fail condition if login time limit expires
         errorTimer = setTimeout (->
           self.robot.logger.error 'Timeout in waiting for login success!'
@@ -130,7 +130,8 @@ class SkypeWebAdapter extends Adapter
         # Monitor outgoing requests until proper poll request appears
         requestsCount = 0
         success       = false
-        page.set 'onResourceRequested', (request) ->
+        page.set 'onResourceRequested'
+        .then((request) ->
           if request.method is 'POST'
             for header in request.headers
               if header.name is 'RegistrationToken'
@@ -147,11 +148,16 @@ class SkypeWebAdapter extends Adapter
                 options?.success?()
           else
             self.robot.logger.debug 'Skype during login: ' + request.url
+        ).catch((e) ->
+          console.log e
+          throw e
+        )
         # Use generic user-agent
         page.set 'settings.userAgent',
           'Mozilla (Windows NT) AppleWebKit KHTML, like Gecko) Chrome'
         # Login to skype web
-        page.open 'https://web.skype.com', (status) ->
+        page.open 'https://web.skype.com'
+        .then((status) ->
           helper = new PageHelper page
           helper.wait '#username', ->
             if self.username.indexOf('@') is -1
@@ -162,7 +168,19 @@ class SkypeWebAdapter extends Adapter
               # Wait a redirect to Windows Live login page
               helper.wait 'input[type="submit"]', ->
                 helper.fillForm 'input[type="password"]': self.password
-    ), phantomOptions
+        )
+        .catch((e) ->
+          console.log e
+          throw e
+        )
+      ).catch((e) ->
+        console.log e
+        throw e
+      )
+    ).catch((e) ->
+      console.log e
+      throw e
+    )
 
 
   # @private
